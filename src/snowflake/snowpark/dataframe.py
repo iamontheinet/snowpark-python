@@ -446,7 +446,12 @@ class DataFrame:
         # When executing a DataFrame in any method of snowpark (either public or private),
         # we should always call this method instead of collect(), to make sure the
         # query tag is set properly.
-        return self._internal_collect_with_tag_inner()
+        return self._session._conn.execute(
+            self._plan,
+            _statement_params={"QUERY_TAG": create_statement_query_tag(3)}
+            if not self._session.query_tag
+            else None,
+        )
 
     def _internal_collect_with_tag_inner(self) -> List["Row"]:
         return self._session._conn.execute(
