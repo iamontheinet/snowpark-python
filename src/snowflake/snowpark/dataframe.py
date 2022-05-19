@@ -439,12 +439,16 @@ class DataFrame:
         """Executes the query representing this DataFrame and returns the result as a
         list of :class:`Row` objects.
         """
-        return self._internal_collect_with_tag()
+        return self._internal_collect_with_tag_inner()
 
+    @df_collect_api_telemetry
     def _internal_collect_with_tag(self) -> List["Row"]:
         # When executing a DataFrame in any method of snowpark (either public or private),
         # we should always call this method instead of collect(), to make sure the
         # query tag is set properly.
+        return self._internal_collect_with_tag_inner()
+
+    def _internal_collect_with_tag_inner(self) -> List["Row"]:
         return self._session._conn.execute(
             self._plan,
             _statement_params={"QUERY_TAG": create_statement_query_tag(3)}
@@ -452,7 +456,7 @@ class DataFrame:
             else None,
         )
 
-    @df_action_telemetry
+    @df_collect_api_telemetry
     def to_local_iterator(self) -> Iterator[Row]:
         """Executes the query representing this DataFrame and returns an iterator
         of :class:`Row` objects that you can use to retrieve the results.
@@ -2353,7 +2357,6 @@ class DataFrame:
         """
         return self._na
 
-    @df_api_usage
     def describe(self, *cols: Union[str, List[str]]) -> "DataFrame":
         """
         Computes basic statistics for numeric columns, which includes
@@ -2403,7 +2406,11 @@ class DataFrame:
                 list(stat_func_dict.keys()), schema=["summary"]
             )
             # We need to set the API calls for this to same API calls for describe
-            df._plan.api_calls = self._plan.api_calls.copy()
+            # Also add the new API calls for creating this DataFrame to the describe subcalls
+            df._plan.api_calls = [
+                *self._plan.api_calls,
+                {"name": "DataFrame.describe", "subcalls": [*df._plan.api_calls]},
+            ]
             return df
 
         # otherwise, calculate stats
@@ -2429,7 +2436,10 @@ class DataFrame:
             )
             res_df = res_df.union(agg_stat_df) if res_df else agg_stat_df
 
-        res_df._plan.api_calls = self._plan.api_calls.copy()
+        res_df._plan.api_calls = [
+            *self._plan.api_calls,
+            {"name": "DataFrame.describe", "subcalls": res_df._plan.api_calls.copy()},
+        ]
         return res_df
 
     @df_api_usage

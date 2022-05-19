@@ -822,7 +822,7 @@ class Session:
         validate_object_name(name)
         t = Table(name, self)
         # Replace API call origin for table
-        t._plan.api_calls = ["Session.table"]
+        t._plan.api_calls = [{"name": "Session.table"}]
         return t
 
     def table_function(
@@ -881,7 +881,7 @@ class Session:
             self,
             TableFunctionRelation(func_expr),
         )
-        d._plan.api_calls = ["Session.table_function"]
+        d._plan.api_calls = [{"name": f"Session.table_function[{func_expr.func_name}]"}]
         return d
 
     def sql(self, query: str) -> DataFrame:
@@ -902,7 +902,8 @@ class Session:
             [Row(1/2=Decimal('0.500000'))]
         """
         return DataFrame(
-            self, self._plan_builder.query(query, None, api_calls=["session.sql"])
+            self,
+            self._plan_builder.query(query, None, api_calls=[{"name": "Session.sql"}]),
         )
 
     @property
@@ -1032,7 +1033,7 @@ class Session:
 
         if success:
             t = self.table(location)
-            t._plan.api_calls = ["Session.write_pandas"]
+            t._plan.api_calls = [{"name": "Session.write_pandas"}]
             return t
         else:
             raise SnowparkClientExceptionMessages.DF_PANDAS_GENERAL_EXCEPTION(
@@ -1123,7 +1124,7 @@ class Session:
                 auto_create_table=True,
                 create_temp_table=True,
             )
-            t._plan.api_calls = ["Session.create_dataframe[pandas]"]
+            t._plan.api_calls = [{"name": "Session.create_dataframe[pandas]"}]
             return t
 
         # infer the schema based on the data
@@ -1279,7 +1280,7 @@ class Session:
 
         df = DataFrame(self, SnowflakeValues(attrs, converted)).select(project_columns)
         # Get rid of the select statement api call here
-        df._plan.api_calls = ["Session.create_dataframe[values]"]
+        df._plan.api_calls = [{"name": "Session.create_dataframe[values]"}]
         return df
 
     def range(self, start: int, end: Optional[int] = None, step: int = 1) -> DataFrame:
@@ -1304,7 +1305,9 @@ class Session:
             [Row(ID=1), Row(ID=3), Row(ID=5), Row(ID=7), Row(ID=9)]
         """
         range_plan = Range(0, start, step) if end is None else Range(start, end, step)
-        return DataFrame(self, range_plan)
+        df = DataFrame(self, range_plan)
+        df._plan.api_calls = [{"name": "Session.range"}]
+        return df
 
     def get_current_database(self) -> Optional[str]:
         """
@@ -1554,12 +1557,14 @@ class Session:
             raise ValueError("mode must be one of ('OBJECT', 'ARRAY', 'BOTH')")
         if isinstance(input, str):
             input = col(input)
-        return DataFrame(
+        df = DataFrame(
             self,
             TableFunctionRelation(
                 FlattenFunction(input._expression, path, outer, recursive, mode)
             ),
         )
+        df._plan.api_calls = [{"name": "Session.flatten"}]
+        return df
 
     def query_history(self) -> QueryHistory:
         """Create an instance of :class:`QueryHistory` as a context manager to record queries that are pushed down to the Snowflake database.
