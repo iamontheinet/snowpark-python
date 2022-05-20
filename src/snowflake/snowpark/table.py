@@ -16,7 +16,7 @@ from snowflake.snowpark._internal.analyzer.table_merge_expression import (
     UpdateMergeExpression,
 )
 from snowflake.snowpark._internal.error_message import SnowparkClientExceptionMessages
-from snowflake.snowpark._internal.telemetry import df_action_telemetry
+from snowflake.snowpark._internal.telemetry import TelemetryField, df_action_telemetry
 from snowflake.snowpark._internal.type_utils import ColumnOrLiteral
 from snowflake.snowpark.column import Column
 from snowflake.snowpark.dataframe import DataFrame, _disambiguate
@@ -381,7 +381,7 @@ class Table(DataFrame):
                 else None,
             )
         )
-        new_df._plan.api_calls.append({"name": "Table.update"})
+        new_df._plan.api_calls.append({TelemetryField.NAME.value: "Table.update"})
         return _get_update_result(new_df._internal_collect_with_tag())
 
     @df_action_telemetry
@@ -442,7 +442,7 @@ class Table(DataFrame):
                 else None,
             )
         )
-        new_df._plan.api_calls.append({"name": "Table.delete"})
+        new_df._plan.api_calls.append({TelemetryField.NAME.value: "Table.delete"})
         return _get_delete_result(new_df._internal_collect_with_tag())
 
     @df_action_telemetry
@@ -508,7 +508,7 @@ class Table(DataFrame):
                 merge_exprs,
             )
         )
-        new_df._plan.api_calls.append({"name": "Table.merge"})
+        new_df._plan.api_calls.append({TelemetryField.NAME.value: "Table.merge"})
         return _get_merge_result(
             new_df._internal_collect_with_tag(),
             inserted=inserted,

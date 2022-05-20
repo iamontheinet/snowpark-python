@@ -10,7 +10,10 @@ from snowflake.snowpark._internal.analyzer.snowflake_plan_node import (
     SaveMode,
     SnowflakeCreateTable,
 )
-from snowflake.snowpark._internal.telemetry import dfw_collect_api_telemetry
+from snowflake.snowpark._internal.telemetry import (
+    TelemetryField,
+    dfw_collect_api_telemetry,
+)
 from snowflake.snowpark._internal.type_utils import ColumnOrSqlExpr
 from snowflake.snowpark._internal.utils import (
     normalize_remote_file_or_dir,
@@ -182,7 +185,9 @@ class DataFrameWriter:
                 header=header,
             )
         )
-        df._plan.api_calls.append({"name": "DataFrameWriter.copy_into_location"})
+        df._plan.api_calls.append(
+            {TelemetryField.NAME.value: "DataFrameWriter.copy_into_location"}
+        )
         return df._internal_collect_with_tag()
 
     saveAsTable = save_as_table
